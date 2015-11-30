@@ -28,9 +28,71 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdio.h>
+#include <argp.h>
 
-#define CLI_VERSION "0.0.0"
+/****************************
+ * Arguments program parser 
+ ****************************/
+const char *argp_program_version = "0.0.1";
+const char *argp_program_bug_address = "bayualdiyansyah@gmail.com";
+const char *short_desc = "Sayoeti -- An AI that can understand which document is about Indonesian corruption news";
 
+/* Available options for the program; used by argp_parser */
+const struct argp_option available_options[] = {
+    {"corpus", 'c', "DIR", 0, "Path to corpus directory (required)" },
+    {"stopwords", 's', "FILE", 0, "File containing new line separated stop words (optional)" },
+    {"listen", 'l', "PORT", 0, "Port to listen too (optional)" },
+    { 0 } // entry for termination
+};
+
+/* options structure used as input by argp_parse; it will passed to argp
+ * parser function parse_opt as state->input. */
+struct options {
+    char *corpus_dir;
+    char *stopwords_file;
+    char *port;
+};
+
+/* parse_opt get called for each option parsed; used by arg_parser */
+error_t parse_opt(int key, char *arg, struct argp_state *state)
+{
+    /* get the input */
+    struct options *opts = state->input;
+    switch (key) {
+    case 'c':
+        opts->corpus_dir = arg;
+        break;
+    case 's':
+        opts->stopwords_file = arg;
+        break;
+    case 'l':
+        opts->port = arg;
+        break;
+    default:
+        return ARGP_ERR_UNKNOWN;
+    }
+  return 0;
+}
+
+/****************************
+ * Main program
+ ****************************/
 int main(int argc, char** argv) {
-    printf("%s\n", "Hello word!");
+
+    /* Set default value for each available option */
+    struct options opts;
+    opts.corpus_dir = "";
+    opts.stopwords_file = "";
+    opts.port = "";
+
+    /* Parse the arguments; every option seen by parse_opt 
+     * will be reflected in opts. */
+    struct argp argp_parser = {available_options, parse_opt, 0, short_desc};
+    argp_parse(&argp_parser, argc, argv, 0, 0, &opts);
+
+    printf("CORPUS = %s\n", opts.corpus_dir);
+    printf("STOPWORDS = %s\n", opts.stopwords_file);
+    printf("PORTS = %s\n", opts.port);
+
+    return 0;
 }
