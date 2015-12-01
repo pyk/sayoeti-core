@@ -29,6 +29,7 @@
  */
 #include <stdio.h>
 #include <argp.h>
+#include <stdlib.h>
 
 /****************************
  * Arguments program parser
@@ -94,8 +95,9 @@ int main(int argc, char** argv) {
     /* corpus_dir is required */
     if(!opts.corpus_dir) {
         fprintf(stderr, "-c options is required. Please see %s --help\n", argv[0]);
-        return 1;
+        exit(EXIT_FAILURE);
     }
+    
     printf("CORPUS = %s\n", opts.corpus_dir);
     printf("STOPWORDS = %s\n", opts.stopwords_file);
     printf("PORTS = %s\n", opts.port);
