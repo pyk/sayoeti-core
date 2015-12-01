@@ -31,7 +31,8 @@
 #include <argp.h>
 
 /****************************
- * Arguments program parser 
+ * Arguments program parser
+ * This started from main in argp_parse function.
  ****************************/
 const char *argp_program_version = "0.0.1";
 const char *argp_program_bug_address = "bayualdiyansyah@gmail.com";
@@ -81,15 +82,20 @@ int main(int argc, char** argv) {
 
     /* Set default value for each available option */
     struct options opts;
-    opts.corpus_dir = "";
-    opts.stopwords_file = "";
-    opts.port = "";
+    opts.corpus_dir = NULL;
+    opts.stopwords_file = NULL;
+    opts.port = NULL;
 
     /* Parse the arguments; every option seen by parse_opt 
      * will be reflected in opts. */
     struct argp argp_parser = {available_options, parse_opt, 0, short_desc};
     argp_parse(&argp_parser, argc, argv, 0, 0, &opts);
 
+    /* corpus_dir is required */
+    if(!opts.corpus_dir) {
+        fprintf(stderr, "-c options is required. Please see %s --help\n", argv[0]);
+        return 1;
+    }
     printf("CORPUS = %s\n", opts.corpus_dir);
     printf("STOPWORDS = %s\n", opts.stopwords_file);
     printf("PORTS = %s\n", opts.port);
