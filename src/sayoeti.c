@@ -252,6 +252,10 @@ void dict_item_destroy(struct dict_item *root)
 struct dict {
     /* Source of dictionary */
     char *source;
+    
+    /* Keep track of how many source documents in the dictionary */
+    long ndocs;
+
     /* Keep track how many items in the dictionary */
     long nitems;
     /* the root of dictionary */
@@ -264,7 +268,12 @@ struct dict {
 struct dict *dict_init(char *source)
 {
     struct dict *d = (struct dict *)malloc(sizeof(struct dict));
+    if(d == NULL) {
+        return NULL;
+    }
+
     d->source = source;
+    d->ndocs = 0;
     d->nitems = 0;
     d->root = NULL;
     return d;
@@ -273,7 +282,8 @@ struct dict *dict_init(char *source)
 /* Print all items in dictionary DICT */
 void dict_printout(struct dict *d)
 {
-    printf("DICT: nitems: %li root: %s height: %d\n", d->nitems, d->root->term, d->root->height);
+    printf("DICTIONARY %li documents %li token; \"%s\" as a root with height %d\n", 
+        d->ndocs, d->nitems, d->root->term, d->root->height);
     dict_item_print(d->root);
 }
 
@@ -381,6 +391,9 @@ struct dict *stopw_dict_create(char *fname, struct dict *stopw_dict)
 {
     /* Initialize the dictionary */
     stopw_dict = dict_init(fname);
+    if(stopw_dict == NULL) {
+        return NULL;
+    }
 
     /* Read the file fname */
     FILE *fp = fopen(fname, "r");
@@ -394,6 +407,9 @@ struct dict *stopw_dict_create(char *fname, struct dict *stopw_dict)
         return NULL;
     }
 
+    /* Count document as 1 */
+    stopw_dict->ndocs = 1;
+    
     /* Close the file; only display info if error */
     if(fclose(fp) != 0) {
         return NULL;
@@ -415,6 +431,9 @@ struct dict *corpus_dict_create(char *dirpath, struct dict *exc, struct dict *co
 {
     /* Initialize the dictionary */
     corpus = dict_init(dirpath);
+    if(corpus == NULL) {
+        return NULL;
+    }
 
     /* Read all files in DIRPATH and build dictionary from words inside the file. 
      * It assume that all files inside directory DIRPATH is text based. */
@@ -454,6 +473,9 @@ struct dict *corpus_dict_create(char *dirpath, struct dict *exc, struct dict *co
              * to open the next file */
             continue;
         }
+        
+        /* Increase the number document we scan */
+        corpus->ndocs += 1;
 
         /* Read every word in file FP, stem and insert each word to a dictionary */
         corpus = dict_populate_from_file(fp, exc, corpus);
