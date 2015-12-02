@@ -336,13 +336,13 @@ struct dict *dict_populate_from_file(FILE *fp, struct dict *exc, struct dict *d)
                 
                 /* Check wether the words is in EXC (excluded) directory
                  * or not. */
-                int excluded = FALSE;
+                int exists = FALSE;
                 if(exc) {
-                    excluded = dict_item_exists(exc->root, vocab);
+                    exists = dict_item_exists(exc->root, vocab);
                 }
 
-                /* Insert the dictionary item if not excluded */
-                if(!excluded) {
+                /* Insert the dictionary item if not exists */
+                if(!exists) {
                     /* Insert dictionary item VOCAB to a dictionary root D */
                     d->root = dict_item_insert(d->root, vocab);
                     /* Keep track of newly inserted items */
@@ -353,8 +353,8 @@ struct dict *dict_populate_from_file(FILE *fp, struct dict *exc, struct dict *d)
                     }
                 }
 
-                /* Remove if the item is excluded */
-                if(excluded) {
+                /* Remove if the item is exists in dictionary EXC */
+                if(exists) {
                     dict_item_destroy(vocab);
                 }
                 
@@ -428,43 +428,46 @@ struct dict *corpus_dict_create(char *dirpath, struct dict *exc, struct dict *co
     struct dirent *ent;
     while((ent = readdir(dir)) != NULL) {
         /* We only care if the ENT is a regular file */
-        if(ent->d_type == DT_REG) {
-            /* Get the path to the file ENT */
-            char *path_to_file = (char *)malloc(sizeof(char) * (strlen(dirpath) + strlen(ent->d_name) + 2));
-            if(path_to_file == NULL) {
-                return NULL;
-            }
-
-            /* Specify relative path to the file */
-            if(dirpath[strlen(dirpath)-1] == '/') {
-                sprintf(path_to_file, "%s%s", dirpath, ent->d_name);
-            } else {
-                sprintf(path_to_file, "%s/%s", dirpath, ent->d_name);
-            }
-
-            /* Read the file */
-            FILE *fp = fopen(path_to_file, "r");
-            if(fp == NULL) {
-                fprintf(stderr, "Couldn't open the file %s; %s\n", path_to_file, strerror(errno));
-                /* skip the file; return the beginning of the while loop
-                 * to open the next file */
-                continue;
-            }
-
-            /* Read every word in file FP, stem and insert each word to a dictionary */
-            corpus = dict_populate_from_file(fp, exc, corpus);
-            if(corpus == NULL) {
-                return NULL;
-            }
-
-            /* Close the file; only display info */
-            if(fclose(fp) != 0) {
-                return NULL;
-            }
-
-            /* We don't need the variable again */
-            free(path_to_file);    
+        if(ent->d_type != DT_REG) {
+            /* Skip this file */
+            continue;
         }
+
+        /* Get the path to the file ENT */
+        char *path_to_file = (char *)malloc(sizeof(char) * (strlen(dirpath) + strlen(ent->d_name) + 2));
+        if(path_to_file == NULL) {
+            return NULL;
+        }
+
+        /* Specify relative path to the file */
+        if(dirpath[strlen(dirpath)-1] == '/') {
+            sprintf(path_to_file, "%s%s", dirpath, ent->d_name);
+        } else {
+            sprintf(path_to_file, "%s/%s", dirpath, ent->d_name);
+        }
+
+        /* Read the file */
+        FILE *fp = fopen(path_to_file, "r");
+        if(fp == NULL) {
+            fprintf(stderr, "Couldn't open the file %s; %s\n", path_to_file, strerror(errno));
+            /* skip the file; return the beginning of the while loop
+             * to open the next file */
+            continue;
+        }
+
+        /* Read every word in file FP, stem and insert each word to a dictionary */
+        corpus = dict_populate_from_file(fp, exc, corpus);
+        if(corpus == NULL) {
+            return NULL;
+        }
+
+        /* Close the file; only display info */
+        if(fclose(fp) != 0) {
+            return NULL;
+        }
+
+        /* We don't need the variable again */
+        free(path_to_file);    
     }
 
     /* Close the opened directory DIR */
@@ -549,22 +552,23 @@ int main(int argc, char** argv) {
     }
 
     /* Create stop words dictionary if the FILE is specified */
-    struct dict *stopwords_dict = NULL;
+    struct dict *stopw_dict = NULL;
     if(opts.stopwords_file) {
         printf("sayoeti: Create stop words dictionary from %s\n", opts.stopwords_file);
-        stopwords_dict = stopw_dict_create(opts.stopwords_file, stopwords_dict);
-        if(stopwords_dict == NULL) {
+        stopw_dict = stopw_dict_create(opts.stopwords_file, stopw_dict);
+        if(stopw_dict == NULL) {
             fprintf(stderr, "sayoeti: Couldn't create dicitonary from file: %s; %s\n", 
                 opts.stopwords_file, strerror(errno));
             exit(EXIT_FAILURE);
         }
+        dict_printout(stopw_dict);
         printf("sayoeti: stop words dictionary from %s is created.\n", opts.stopwords_file);
     }
 
     /* Create index vocabulary from corpus */
-    struct dict *index = dict_init(opts.corpus_dir);
+    struct dict *index = NULL;
     printf("sayoeti: Create index vocabulary from corpus %s\n", opts.corpus_dir);
-    index = corpus_dict_create(opts.corpus_dir, stopwords_dict, index);
+    index = corpus_dict_create(opts.corpus_dir, stopw_dict, index);
     if(index == NULL) {
         fprintf(stderr, "sayoeti: Couldn't create index vocabulary from corpus: %s; %s\n", 
             opts.corpus_dir, strerror(errno));
