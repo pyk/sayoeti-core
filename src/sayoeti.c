@@ -49,86 +49,41 @@ struct dict_item {
     long index;
     char *term;
 
+    /* 0 if not, otherwise 1 */
+    int is_inserted; 
+
     /* The height property for AVL tree */
     int height;
-    struct dict_item *parent, *left, *right;
+    struct dict_item *left, *right;
 };
 
-/* dictionary represents the dictionary */
-struct dictionary {
-    /* track how many items in the dictionary */
-    long nitems;
-
-    /* the root of dictionary */
-    struct dict_item *root;
-};
-
-/* Initialize the dictionary */
-struct dictionary *dict_init(void)
-{
-    struct dictionary *dict = (struct dictionary *)malloc(sizeof(struct dictionary));
-    dict->nitems = 0;
-    dict->root = NULL;
-    return dict;
-}
-
-/* Print each item in the dictionary in alphabetical order */
-void dict_item_print(struct dict_item *item)
-{
-    if(item->left) dict_item_print(item->left);
-    printf("%li:%s\n", item->index, item->term);
-    if(item->right) dict_item_print(item->right);
-}
-
-/* Print all items in dictionary DICT */
-void dict_printout(struct dictionary *dict)
-{
-    printf("DICT: nitems: %li root: %s height: %d\n", dict->nitems, dict->root->term, dict->root->height);
-    dict_item_print(dict->root);
-}
-
-/* Destroy the dictionary item DICT */
-void dict_item_destroy(struct dict_item *item) 
-{
-    if(item == NULL) {
-        return;
-    } 
-
-    dict_item_destroy(item->left);
-    dict_item_destroy(item->right);
-
-    free(item->term);
-    free(item);
-}
-
-/* Destroy dictionary DICT */
-void dict_destroy(struct dictionary *dict) 
-{ 
-    dict_item_destroy(dict->root);
-
-    free(dict);
-}
-
-/* Create new dictionary item with term TERM */
+/* dict_item_new: Creates new dictionary item with term TERM */
 struct dict_item *dict_item_new(char *term)
 {
+    /* TODO(pyk): Handle if memory allocation fail */
     struct dict_item *item = (struct dict_item *)malloc(sizeof(struct dict_item));
-    item->parent = NULL;
-    item->left = NULL;
-    item->right = NULL;
+    /* Just print the message for now */
+    if(item == NULL) {
+        fprintf(stderr, "error in dict_item_new: couldn't allocate the memory for dictionary item.\n");
+        return NULL;
+    }
+
     item->index = 0;
     item->term = term;
+    item->is_inserted = FALSE;
     item->height = 1;
+    item->left = NULL;
+    item->right = NULL;
 
     return item;
 }
 
-/* Choose the maximum value */
-int max(int a, int b) {
-    return (a > b) ? a : b;
+/* dict_item_height_max: returns the maximum value of H1 and H2 */
+int dict_item_height_max(int h1, int h2) {
+    return (h1 > h2) ? h1 : h2;
 }
 
-/* Return the height of item ITEM */
+/* dict_item_height: get the height of dictionary item ITEM */
 int dict_item_height(struct dict_item *item)
 {
     if(item == NULL) {
@@ -137,7 +92,7 @@ int dict_item_height(struct dict_item *item)
     return item->height;
 }
 
-/* Get the balance factor of node ITEM */
+/* dict_item_get_balance: get the balance factor of dictionary item ITEM */
 int dict_item_get_balance(struct dict_item *item)
 {
     if(item == NULL) {
@@ -146,7 +101,8 @@ int dict_item_get_balance(struct dict_item *item)
     return dict_item_height(item->left) - dict_item_height(item->right);
 }
 
-/* Perform right rotation on node ITEM */
+/* dict_item_rotate_right: Performs tree operation right rotation on 
+ * dictionary item ITEM. It returns rotated dicitonary item. */
 struct dict_item *dict_item_rotate_right(struct dict_item *item)
 {
     struct dict_item *backup_left = item->left;
@@ -157,14 +113,20 @@ struct dict_item *dict_item_rotate_right(struct dict_item *item)
     item->left = backup_right;
 
     /* Update the heights */
-    item->height = max(dict_item_height(item->left), dict_item_height(item->right)) + 1;
-    backup_left->height = max(dict_item_height(backup_left->left), dict_item_height(backup_left->right)) + 1;
+    int hil = dict_item_height(item->left);
+    int hir = dict_item_height(item->right);
+    item->height = dict_item_height_max(hil, hir) + 1;
 
-    /* return new root */
+    int bll = dict_item_height(backup_left->left);
+    int blr = dict_item_height(backup_left->right);
+    backup_left->height = dict_item_height_max(bll, blr) + 1;
+
+    /* Return rotated item */
     return backup_left;
 }
 
-/* Perform left rotation on node ITEM */
+/* dict_item_rotate_left: Performs tree operation left rotation on 
+ * dictionary item ITEM. It returns rotated dicitonary item. */
 struct dict_item *dict_item_rotate_left(struct dict_item *item)
 {
     struct dict_item *backup_right = item->right;
@@ -175,37 +137,39 @@ struct dict_item *dict_item_rotate_left(struct dict_item *item)
     item->right = backup_left;
 
     /* Update the heights */
-    item->height = max(dict_item_height(item->left), dict_item_height(item->right)) + 1;
-    backup_right->height = max(dict_item_height(backup_right->left), dict_item_height(backup_right->right)) + 1;
+    int hil = dict_item_height(item->left);
+    int hir = dict_item_height(item->right);
+    item->height = dict_item_height_max(hil, hir) + 1;
 
-    /* return new root */
+    int brl = dict_item_height(backup_right->left);
+    int brr = dict_item_height(backup_right->right);
+    backup_right->height = dict_item_height_max(brl, brr) + 1;
+
+    /* Return rotated item */
     return backup_right;
 }
 
-/* Insert dictionary item ITEM to a dictionary root items ROOT. If the root
- * is NULL then ITEM will be the root of the dictionary */
+/* dict_item_insert: Inserts dictionary item ITEM to a dictionary items root ROOT. 
+ * If the root is NULL then ITEM will be the root of the dictionary */
 struct dict_item *dict_item_insert(struct dict_item *root, struct dict_item *item) 
 {
     /* Set root for the first time or assign to root->left or root->right */
     if(root == NULL) {
+        item->is_inserted = TRUE;
         return item;
     }
 
     /* We compare each word in lexicographical order. left leaf start from 'a' */
     if(strcmp(root->term, item->term) > 0) {
-        if(root->left == NULL) {
-            item->parent = root;
-        }
         root->left = dict_item_insert(root->left, item);
     } else if(strcmp(root->term, item->term) < 0) {
-        if(root->right == NULL) {
-            item->parent = root;
-        }
         root->right = dict_item_insert(root->right, item);
     }
 
     /* Update the height of the ancestor node */
-    root->height = max(dict_item_height(root->left), dict_item_height(root->right)) + 1;
+    int hrl = dict_item_height(root->left);
+    int hrr = dict_item_height(root->right);
+    root->height = dict_item_height_max(hrl, hrr) + 1;
     
     /* Get the balance factor to check wether tree is balance or unbalanced */
     int balance = dict_item_get_balance(root);
@@ -238,81 +202,156 @@ struct dict_item *dict_item_insert(struct dict_item *root, struct dict_item *ite
     return root;
 }
 
-/* Check ITEM if it exists in dictionary DICT */
-int dict_item_exists(struct dict_item *dict, struct dict_item *item)
+/* dict_item_exists: recursively search the dictionary item ITEM from
+ * root dictionary ROOT. It returns TRUE if the item is found, otherwise 
+ * FALSE */
+int dict_item_exists(struct dict_item *root, struct dict_item *item)
 {
-    if(dict == NULL) {
+    if(root == NULL) {
         return FALSE;
     }
 
     /* we compare each word in lexicographical order. left leaf start from 'a' */
-    if(strcmp(dict->term, item->term) == 0) {
+    if(strcmp(root->term, item->term) == 0) {
         return TRUE;
-    } else if(strcmp(dict->term, item->term) < 0) {
-        return dict_item_exists(dict->right, item);
-    } else if(strcmp(dict->term, item->term) > 0) {
-        return dict_item_exists(dict->left, item);
+    } else if(strcmp(root->term, item->term) < 0) {
+        return dict_item_exists(root->right, item);
+    } else if(strcmp(root->term, item->term) > 0) {
+        return dict_item_exists(root->left, item);
     }
 
     return FALSE;
 }
 
-/* Read each word from a file stream FP. Stem the word and insert the word
- * to the dictionary DICT. */
-struct dictionary *dict_build_from_file(struct dictionary *dict, FILE *fp)
+/* dict_item_print: recursivly print each item in the dictionary 
+ * in alphabetical order. */
+void dict_item_print(struct dict_item *root)
+{
+    if(root->left) dict_item_print(root->left);
+    printf("%li:%s\n", root->index, root->term);
+    if(root->right) dict_item_print(root->right);
+}
+
+/* dict_item_destroy: recursively remove the dictionary items from memory 
+ * started at dictionary items ROOT */
+void dict_item_destroy(struct dict_item *root) 
+{
+    if(root == NULL) {
+        return;
+    } 
+
+    dict_item_destroy(root->left);
+    dict_item_destroy(root->right);
+
+    free(root);
+}
+
+/* dict: represents the dictionary */
+struct dict {
+    /* Source of dictionary */
+    char *source;
+    /* Keep track how many items in the dictionary */
+    long nitems;
+    /* the root of dictionary */
+    struct dict_item *root;
+};
+
+/* dict_init: Initialize the dictionary from source SOURCE. The dictionary 
+ * source can be path to a file or path to a dictionary that relative to
+ * where the program is executed. */
+struct dict *dict_init(char *source)
+{
+    struct dict *d = (struct dict *)malloc(sizeof(struct dict));
+    d->source = source;
+    d->nitems = 0;
+    d->root = NULL;
+    return d;
+}
+
+/* Print all items in dictionary DICT */
+void dict_printout(struct dict *d)
+{
+    printf("DICT: nitems: %li root: %s height: %d\n", d->nitems, d->root->term, d->root->height);
+    dict_item_print(d->root);
+}
+
+/* dict_destroy: remove dictionary D from memory */
+void dict_destroy(struct dict *d) 
+{ 
+    dict_item_destroy(d->root);
+    free(d);
+}
+
+/* dic_populate_from_file: Populates dictionary D items from file FP.
+ * It returns new */
+struct dict *dict_populate_from_file(struct dict *d, FILE *fp)
 {
     /* To save a discovered token temporary */
     char token[MAX_TOKEN_CHAR];
-    int ti = 0; 
+    int ti = 0;
 
     /* Read every char C in the file FP until end of file */
     int c;
     while((c = fgetc(fp)) != EOF) {
         /* We only care if the char is alphabet */
         if(isalpha(c)) {
-            /* build a token, convert all char to lowercase */
+            /* Save the char C to token, convert all char to lowercase */
             if (ti < (MAX_TOKEN_CHAR - 2)) {
                 token[ti] = tolower(c);
             }
-            /* increment the token index */
+
+            /* Increase the token index */
             ti++;
         } else if(isspace(c)) {
             /* If the next char is a whitespace, then close the previous 
-             * discovered token then create a new vocab and add it to a 
-             * dictionary DICT */ 
+             * discovered token then create a new dictionary item and insert
+             * it to a dictionary D */ 
+
+             /* Make sure we don't access overflow buffer */
             if(ti != 0 && ti < (MAX_TOKEN_CHAR-2)) {
-                /* terminate the current token */
+                /* Terminate the current token */
                 token[ti] = '\0';
+
                 /* Save the token to a t variable, to avoid re-used token pointer
                  * across a dictionary items. */
                 char *t = (char *)malloc(sizeof(char) * (strlen(token) + 1));
+                /* If we cannot allocate the memory, just print the message */
+                if(t == NULL) {
+                    /* TODO(pyk): remove this error printout */
+                    fprintf(stderr, "error in dict_populate_from_file: couldn't allocate the memory for token.\n");
+                    return NULL;
+                }
+                /* Copy TOKEN to T */
                 strcpy(t, token);
+
+                /* Create new dictionary item with term T */
                 struct dict_item *vocab = dict_item_new(t);
+                if(vocab == NULL) {
+                    /* TODO(pyk): remove this error printout */
+                    fprintf(stderr, "error in dict_populate_from_file: couldn't create new dictionary item.\n");
+                    return NULL;
+                }
                 
-                /* count root */
-                if(dict->root == NULL) {
-                    dict->nitems = 1;
-                }
-                /* Insert dictionary item VOCAB to a dictionary DICT */
-                dict->root = dict_item_insert(dict->root, vocab);
-                /* for root vocab */
-                if(dict->nitems == 1) {
-                    vocab->index = dict->nitems;
-                }
-                if(vocab->parent) {
+                /* Insert dictionary item VOCAB to a dictionary root D */
+                d->root = dict_item_insert(d->root, vocab);
+                /* Keep track of newly inserted items */
+                if(vocab->is_inserted) {
                     /* increment nitems, update vocab */
-                    dict->nitems += 1;
-                    vocab->index = dict->nitems;
+                    d->nitems += 1;
+                    vocab->index = d->nitems;
                 }
+                
                 /* All allocated memory in here will be freed when dictionary
                  * DICT is destroyed */
             }
+
             /* Reset the token index */
             ti = 0;
         }
     }
 
-    return dict;
+    /* Return populated dictionary */
+    return d;
 }
 
 /****************************
@@ -361,6 +400,44 @@ error_t parse_opt(int key, char *arg, struct argp_state *state)
 }
 
 /****************************
+ * Stop words
+ ****************************/
+/* stopw_error: provide convinient way to report & handle an error */
+struct stopw_err {
+    char *msg; /* error message */
+};
+
+/* stopw_dict_create: creates stopwords dictionary D from file FNAME. 
+ * Returns NULL if only if error happen. */
+struct dict *stopw_dict_create(char *fname, struct dict *d)
+{
+    /* Initialize the dictionary */
+    d = dict_init(fname);
+
+    /* Read the file fname */
+    FILE *fp = fopen(fname, "r");
+    if(fp == NULL) {
+        fprintf(stderr, "Couldn't open the file: %s; %s\n", fname, strerror(errno));
+        return NULL;
+    }
+
+    /* Populate dictionary from a file FP */
+    d = dict_populate_from_file(d, fp);
+    if(d == NULL) {
+        fprintf(stderr, "Couldn't populate the dictionary.");
+        return NULL;
+    }
+
+    /* Close the file; only display info if error */
+    if(fclose(fp) != 0) {
+        fprintf(stderr, "Couldn't close the file: %s; %s\n", fname, strerror(errno));
+        return NULL;
+    }
+
+    return d;
+}
+
+/****************************
  * Main program
  ****************************/
 int main(int argc, char** argv) {
@@ -376,7 +453,7 @@ int main(int argc, char** argv) {
     struct argp argp_parser = {available_options, parse_opt, 0, short_desc};
     argp_parse(&argp_parser, argc, argv, 0, 0, &opts);
 
-    /* corpus_dir is required */
+    /* Exit if corpus_dir is not specified */
     if(!opts.corpus_dir) {
         fprintf(stderr, "-c options is required. Please see %s --help\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -388,30 +465,16 @@ int main(int argc, char** argv) {
         printf("sayoeti: %s\n", "skipping process building stop words dictionary");
     }
 
-    /* Build stop words dictionary if the FILE is specified */
-    struct dictionary *stopwords_dict = NULL;
+    /* Create stop words dictionary if the FILE is specified */
+    struct dict *stopwords_dict = NULL;
     if(opts.stopwords_file) {
-        printf("sayoeti: build stop words dictionary from %s\n", opts.stopwords_file);
-        stopwords_dict = dict_init();
-
-        /* Read the file */
-        FILE *fp = fopen(opts.stopwords_file, "r");
-        if(fp == NULL) {
-            fprintf(stderr, "Couldn't open the file %s; %s\n", opts.stopwords_file, strerror(errno));
-            /* exit as a failure to notify that we cannot open the stop words file */
+        printf("sayoeti: create stop words dictionary from %s\n", opts.stopwords_file);
+        stopwords_dict = stopw_dict_create(opts.stopwords_file, stopwords_dict);
+        if(stopwords_dict == NULL) {
+            printf("sayoeti: couldn't create stopwords dictionary.\n");
             exit(EXIT_FAILURE);
         }
-
-        /* Build dictionary from a file */
-        stopwords_dict = dict_build_from_file(stopwords_dict, fp);
-
-        /* Close the file; only display info if error */
-        if(fclose(fp) != 0) {
-            fprintf(stderr, "Couldn't close the file: %s; %s\n", opts.stopwords_file, strerror(errno));
-        }
-
-        /* Notify that stop words dictionary has created */
-        printf("sayoeti: %s\n", "stop words dicitonary is created.");
+        printf("sayoeti: stop words dictionary from %s is created.\n", opts.stopwords_file);
     }
 
     if(stopwords_dict) {
