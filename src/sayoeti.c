@@ -31,6 +31,8 @@
 #include <argp.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
+#include <errno.h>
 
 /****************************
  * Dictionary
@@ -283,8 +285,11 @@ void dict_destroy(struct dict *d)
 }
 
 /* dic_populate_from_file: Populates dictionary D items from file FP.
- * It returns new */
-struct dict *dict_populate_from_file(struct dict *d, FILE *fp)
+ * The item is inserted if not exists in SW. If EXC is NULL then 
+ * exists checking is omitted.
+ * 
+ * It returns populated dictionary */
+struct dict *dict_populate_from_file(FILE *fp, struct dict *exc, struct dict *d)
 {
     /* To save a discovered token temporary */
     char token[MAX_TOKEN_CHAR];
@@ -317,28 +322,40 @@ struct dict *dict_populate_from_file(struct dict *d, FILE *fp)
                 char *t = (char *)malloc(sizeof(char) * (strlen(token) + 1));
                 /* If we cannot allocate the memory, just print the message */
                 if(t == NULL) {
-                    /* TODO(pyk): remove this error printout */
-                    fprintf(stderr, "error in dict_populate_from_file: couldn't allocate the memory for token.\n");
                     return NULL;
                 }
+
                 /* Copy TOKEN to T */
                 strcpy(t, token);
 
                 /* Create new dictionary item with term T */
                 struct dict_item *vocab = dict_item_new(t);
                 if(vocab == NULL) {
-                    /* TODO(pyk): remove this error printout */
-                    fprintf(stderr, "error in dict_populate_from_file: couldn't create new dictionary item.\n");
                     return NULL;
                 }
                 
-                /* Insert dictionary item VOCAB to a dictionary root D */
-                d->root = dict_item_insert(d->root, vocab);
-                /* Keep track of newly inserted items */
-                if(vocab->is_inserted) {
-                    /* increment nitems, update vocab */
-                    d->nitems += 1;
-                    vocab->index = d->nitems;
+                /* Check wether the words is in EXC (excluded) directory
+                 * or not. */
+                int excluded = FALSE;
+                if(exc) {
+                    excluded = dict_item_exists(exc->root, vocab);
+                }
+
+                /* Insert the dictionary item if not excluded */
+                if(!excluded) {
+                    /* Insert dictionary item VOCAB to a dictionary root D */
+                    d->root = dict_item_insert(d->root, vocab);
+                    /* Keep track of newly inserted items */
+                    if(vocab->is_inserted) {
+                        /* increment nitems, update vocab */
+                        d->nitems += 1;
+                        vocab->index = d->nitems;
+                    }
+                }
+
+                /* Remove if the item is excluded */
+                if(excluded) {
+                    dict_item_destroy(vocab);
                 }
                 
                 /* All allocated memory in here will be freed when dictionary
@@ -352,6 +369,110 @@ struct dict *dict_populate_from_file(struct dict *d, FILE *fp)
 
     /* Return populated dictionary */
     return d;
+}
+
+/****************************
+ * Stop words
+ ****************************/
+/* stopw_dict_create: creates stopwords dictionary STOPW_DICT from file FNAME. 
+ * Returns NULL if only if error happen and ERRNO will be set to last
+ * error. */
+struct dict *stopw_dict_create(char *fname, struct dict *stopw_dict)
+{
+    /* Initialize the dictionary */
+    stopw_dict = dict_init(fname);
+
+    /* Read the file fname */
+    FILE *fp = fopen(fname, "r");
+    if(fp == NULL) {
+        return NULL;
+    }
+
+    /* Populate dictionary from a file FP */
+    stopw_dict = dict_populate_from_file(fp, NULL, stopw_dict);
+    if(stopw_dict == NULL) {
+        return NULL;
+    }
+
+    /* Close the file; only display info if error */
+    if(fclose(fp) != 0) {
+        return NULL;
+    }
+
+    return stopw_dict;
+}
+
+/****************************
+ * Corpus
+ ****************************/
+/* corpus_dict_create: creates dictionary CORPUS from corpus DIR.
+ * If the words is not in the dictionary EXC then the words is inserted to
+ * dictionary CORPUS.
+ * 
+ * Returns NULL if only if error happen and ERRNO will be set to last
+ * error. */
+struct dict *corpus_dict_create(char *dirpath, struct dict *exc, struct dict *corpus)
+{
+    /* Initialize the dictionary */
+    corpus = dict_init(dirpath);
+
+    /* Read all files in DIRPATH and build dictionary from words inside the file. 
+     * It assume that all files inside directory DIRPATH is text based. */
+    DIR *dir;
+    dir = opendir(dirpath);
+    if(dir == NULL) {
+        return NULL;
+    }
+
+    /* Scan all files inside directory DIR */
+    struct dirent *ent;
+    while((ent = readdir(dir)) != NULL) {
+        /* We only care if the ENT is a regular file */
+        if(ent->d_type == DT_REG) {
+            /* Get the path to the file ENT */
+            char *path_to_file = (char *)malloc(sizeof(char) * (strlen(dirpath) + strlen(ent->d_name) + 2));
+            if(path_to_file == NULL) {
+                return NULL;
+            }
+
+            /* Specify relative path to the file */
+            if(dirpath[strlen(dirpath)-1] == '/') {
+                sprintf(path_to_file, "%s%s", dirpath, ent->d_name);
+            } else {
+                sprintf(path_to_file, "%s/%s", dirpath, ent->d_name);
+            }
+
+            /* Read the file */
+            FILE *fp = fopen(path_to_file, "r");
+            if(fp == NULL) {
+                fprintf(stderr, "Couldn't open the file %s; %s\n", path_to_file, strerror(errno));
+                /* skip the file; return the beginning of the while loop
+                 * to open the next file */
+                continue;
+            }
+
+            /* Read every word in file FP, stem and insert each word to a dictionary */
+            corpus = dict_populate_from_file(fp, exc, corpus);
+            if(corpus == NULL) {
+                return NULL;
+            }
+
+            /* Close the file; only display info */
+            if(fclose(fp) != 0) {
+                return NULL;
+            }
+
+            /* We don't need the variable again */
+            free(path_to_file);    
+        }
+    }
+
+    /* Close the opened directory DIR */
+    if(closedir(dir) != 0) {
+        return NULL;
+    }
+
+    return corpus;
 }
 
 /****************************
@@ -400,42 +521,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state)
 }
 
 /****************************
- * Stop words
- ****************************/
-/* stopw_error: provide convinient way to report & handle an error */
-struct stopw_err {
-    char *msg; /* error message */
-};
-
-/* stopw_dict_create: creates stopwords dictionary D from file FNAME. 
- * Returns NULL if only if error happen and ERRNO will be set to last
- * error. */
-struct dict *stopw_dict_create(char *fname, struct dict *d)
-{
-    /* Initialize the dictionary */
-    d = dict_init(fname);
-
-    /* Read the file fname */
-    FILE *fp = fopen(fname, "r");
-    if(fp == NULL) {
-        return NULL;
-    }
-
-    /* Populate dictionary from a file FP */
-    d = dict_populate_from_file(d, fp);
-    if(d == NULL) {
-        return NULL;
-    }
-
-    /* Close the file; only display info if error */
-    if(fclose(fp) != 0) {
-        return NULL;
-    }
-
-    return d;
-}
-
-/****************************
  * Main program
  ****************************/
 int main(int argc, char** argv) {
@@ -469,23 +554,24 @@ int main(int argc, char** argv) {
         printf("sayoeti: Create stop words dictionary from %s\n", opts.stopwords_file);
         stopwords_dict = stopw_dict_create(opts.stopwords_file, stopwords_dict);
         if(stopwords_dict == NULL) {
-            fprintf(stderr, "sayoeti: Couldn't create dicitonary from file: %s; %s\n", opts.stopwords_file, strerror(errno));
+            fprintf(stderr, "sayoeti: Couldn't create dicitonary from file: %s; %s\n", 
+                opts.stopwords_file, strerror(errno));
             exit(EXIT_FAILURE);
         }
         printf("sayoeti: stop words dictionary from %s is created.\n", opts.stopwords_file);
     }
 
-    if(stopwords_dict) {
-        struct dict_item *vocab = dict_item_new("tidass");
-        if(dict_item_exists(stopwords_dict->root, vocab)) {
-            printf("%s\n", "EXISTS");
-        } else {
-            printf("%s\n", "NOT EXISTS");
-        }
-        
-        // dict_printout(stopwords_dict);
+    /* Create index vocabulary from corpus */
+    struct dict *index = dict_init(opts.corpus_dir);
+    printf("sayoeti: Create index vocabulary from corpus %s\n", opts.corpus_dir);
+    index = corpus_dict_create(opts.corpus_dir, stopwords_dict, index);
+    if(index == NULL) {
+        fprintf(stderr, "sayoeti: Couldn't create index vocabulary from corpus: %s; %s\n", 
+            opts.corpus_dir, strerror(errno));
+        exit(EXIT_FAILURE);
     }
-
+    printf("sayoeti: Index vocabulary from corpus %s created.\n", opts.corpus_dir);
+    dict_printout(index);
 
     printf("CORPUS = %s\n", opts.corpus_dir);
     printf("STOPWORDS = %s\n", opts.stopwords_file);
