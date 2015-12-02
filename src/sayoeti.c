@@ -408,7 +408,8 @@ struct stopw_err {
 };
 
 /* stopw_dict_create: creates stopwords dictionary D from file FNAME. 
- * Returns NULL if only if error happen. */
+ * Returns NULL if only if error happen and ERRNO will be set to last
+ * error. */
 struct dict *stopw_dict_create(char *fname, struct dict *d)
 {
     /* Initialize the dictionary */
@@ -417,20 +418,17 @@ struct dict *stopw_dict_create(char *fname, struct dict *d)
     /* Read the file fname */
     FILE *fp = fopen(fname, "r");
     if(fp == NULL) {
-        fprintf(stderr, "Couldn't open the file: %s; %s\n", fname, strerror(errno));
         return NULL;
     }
 
     /* Populate dictionary from a file FP */
     d = dict_populate_from_file(d, fp);
     if(d == NULL) {
-        fprintf(stderr, "Couldn't populate the dictionary.");
         return NULL;
     }
 
     /* Close the file; only display info if error */
     if(fclose(fp) != 0) {
-        fprintf(stderr, "Couldn't close the file: %s; %s\n", fname, strerror(errno));
         return NULL;
     }
 
@@ -461,17 +459,17 @@ int main(int argc, char** argv) {
     
     /* Skip building stop words dictionary if the FILE is not provided */
     if(!opts.stopwords_file) {
-        printf("sayoeti: %s\n", "stop words file is not specified.");
-        printf("sayoeti: %s\n", "skipping process building stop words dictionary");
+        printf("sayoeti: Stop words file is not specified.\n");
+        printf("sayoeti: Skipping process building stop words dictionary.\n");
     }
 
     /* Create stop words dictionary if the FILE is specified */
     struct dict *stopwords_dict = NULL;
     if(opts.stopwords_file) {
-        printf("sayoeti: create stop words dictionary from %s\n", opts.stopwords_file);
+        printf("sayoeti: Create stop words dictionary from %s\n", opts.stopwords_file);
         stopwords_dict = stopw_dict_create(opts.stopwords_file, stopwords_dict);
         if(stopwords_dict == NULL) {
-            printf("sayoeti: couldn't create stopwords dictionary.\n");
+            fprintf(stderr, "sayoeti: Couldn't create dicitonary from file: %s; %s\n", opts.stopwords_file, strerror(errno));
             exit(EXIT_FAILURE);
         }
         printf("sayoeti: stop words dictionary from %s is created.\n", opts.stopwords_file);
