@@ -27,48 +27,9 @@
 
 #include "utils.h"
 #include "dict.h"
+#include "stopwords.h"
 
 #include "../deps/libsvm/svm.h"
-
-/****************************
- * Stop words
- ****************************/
-/* stopw_dict_create: creates stopwords dictionary STOPW_DICT from file FNAME. 
- * Returns NULL if only if error happen and ERRNO will be set to last
- * error. */
-struct dict *stopw_dict_create(char *fname, struct dict *stopw_dict)
-{
-    /* TODO(pyk): we need to copy the *fname to another memory though;
-     * so it's not gone when we freed *fname from outside this function */
-
-    /* Initialize the dictionary */
-    stopw_dict = dict_new(fname);
-    if(stopw_dict == NULL) {
-        return NULL;
-    }
-
-    /* Read the file fname */
-    FILE *fp = fopen(fname, "r");
-    if(fp == NULL) {
-        return NULL;
-    }
-
-    /* Populate dictionary from a file FP */
-    stopw_dict = dict_populatef(fp, NULL, stopw_dict);
-    if(stopw_dict == NULL) {
-        return NULL;
-    }
-
-    /* Count document as 1 */
-    stopw_dict->ndocs = 1;
-
-    /* Close the file; only display info if error */
-    if(fclose(fp) != 0) {
-        return NULL;
-    }
-
-    return stopw_dict;
-}
 
 /****************************
  * Corpus
@@ -605,13 +566,13 @@ int main(int argc, char** argv) {
     struct dict *stopw_dict = NULL;
     if(opts.stopwords_file) {
         printf("sayoeti: Create stop words dictionary from %s\n", opts.stopwords_file);
-        stopw_dict = stopw_dict_create(opts.stopwords_file, stopw_dict);
+        stopw_dict = stopw_dict_create(opts.stopwords_file);
         if(stopw_dict == NULL) {
             fprintf(stderr, "sayoeti: Couldn't create dicitonary from file: %s; %s\n", 
                 opts.stopwords_file, strerror(errno));
             exit(EXIT_FAILURE);
         }
-        // dict_printout(stopw_dict);
+        dict_printout(stopw_dict);
         printf("sayoeti: stop words dictionary from %s is created.\n", opts.stopwords_file);
     }
 
