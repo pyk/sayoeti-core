@@ -33,7 +33,7 @@ int util_tokenf(char token[], int maxtoken, FILE *fp)
     while((c = fgetc(fp)) != EOF) {
         
         /* Stop reading if we encounter a space */
-        if(isspace(c)) {
+        if(isspace(c) || !isalnum(c)) {
             /* But we keep reading if we don't get any token yet */
             if(ti == 0) continue;
             break;
@@ -54,4 +54,10 @@ int util_tokenf(char token[], int maxtoken, FILE *fp)
     }
 
     return ti;
+}
+
+/* util_max: return the biggest element from a and b */
+int util_max(int a, int b)
+{
+    return (a > b) ? a : b;
 }

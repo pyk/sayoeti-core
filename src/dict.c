@@ -68,11 +68,6 @@ void dict_item_destroy(struct dict_item *root)
     free(root);
 }
 
-/* dict_item_height_max: returns the maximum value of H1 and H2 */
-int dict_item_height_max(int h1, int h2) {
-    return (h1 > h2) ? h1 : h2;
-}
-
 /* dict_item_height: get the height of dictionary item ITEM */
 int dict_item_height(struct dict_item *item)
 {
@@ -105,11 +100,11 @@ struct dict_item *dict_item_rotate_right(struct dict_item *item)
     /* Update the heights */
     int hil = dict_item_height(item->left);
     int hir = dict_item_height(item->right);
-    item->height = dict_item_height_max(hil, hir) + 1;
+    item->height = util_max(hil, hir) + 1;
 
     int bll = dict_item_height(backup_left->left);
     int blr = dict_item_height(backup_left->right);
-    backup_left->height = dict_item_height_max(bll, blr) + 1;
+    backup_left->height = util_max(bll, blr) + 1;
 
     /* Return rotated item */
     return backup_left;
@@ -129,11 +124,11 @@ struct dict_item *dict_item_rotate_left(struct dict_item *item)
     /* Update the heights */
     int hil = dict_item_height(item->left);
     int hir = dict_item_height(item->right);
-    item->height = dict_item_height_max(hil, hir) + 1;
+    item->height = util_max(hil, hir) + 1;
 
     int brl = dict_item_height(backup_right->left);
     int brr = dict_item_height(backup_right->right);
-    backup_right->height = dict_item_height_max(brl, brr) + 1;
+    backup_right->height = util_max(brl, brr) + 1;
 
     /* Return rotated item */
     return backup_right;
@@ -159,7 +154,7 @@ struct dict_item *dict_item_insert(struct dict_item *root, struct dict_item *ite
     /* Update the height of the ancestor node */
     int hrl = dict_item_height(root->left);
     int hrr = dict_item_height(root->right);
-    root->height = dict_item_height_max(hrl, hrr) + 1;
+    root->height = util_max(hrl, hrr) + 1;
     
     /* Get the balance factor to check wether tree is balance or unbalanced */
     int balance = dict_item_get_balance(root);
@@ -303,7 +298,7 @@ struct dict *dict_populatef(FILE *fp, struct dict *exc, struct dict *d)
     while((lentoken = util_tokenf(token, MAX_TOKEN_CHAR, fp)) != 0) {
         /* The token length is exceeded, so skip the token we get the next 
          * token instead */
-        if(lentoken > MAX_TOKEN_CHAR-1) {
+        if(lentoken >= MAX_TOKEN_CHAR-1) {
             continue;
         }
 
