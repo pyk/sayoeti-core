@@ -1,4 +1,18 @@
-build:
-	gcc -Wall -o sayoeti src/sayoeti.c
-debug:
-	gcc -Wall -o sayoeti src/sayoeti.c -ggdb
+CC = gcc
+CFLAGS = -Wall -O3
+DEPS = src/utils.h
+OBJ = sayoeti.o utils.o svm.o
+
+all: libsvm sayoeti
+
+libsvm: deps/libsvm/svm.h deps/libsvm/svm.cpp
+	g++ -Wall -Wconversion -O3 -fPIC -c deps/libsvm/svm.cpp
+
+%.o: src/%.c $(DEPS)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+sayoeti: $(OBJ)
+	g++ $(CFLAGS) -o $@ $^ -lm
+
+clean:
+	rm sayoeti.o utils.o svm.o sayoeti

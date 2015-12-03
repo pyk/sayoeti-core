@@ -25,47 +25,9 @@
 #include <dirent.h>
 #include <errno.h>
 
+#include "utils.h"
+
 #include "../deps/libsvm/svm.h"
-
-/****************************
- * Utils
- ****************************/
-
-/* util_tokenf: get each word separated by space on the file FP.
- * It returns 0 if the EOF is reached and returns more than
- * MAXTOKEN-1 if the token is exceeded MAXTOKEN-1 */
-int util_tokenf(char token[], int maxtoken, FILE *fp)
-{
-    /* Keep track the token index */
-    int ti = 0;
-
-    /* Read all char C before space */
-    int c;
-    while((c = fgetc(fp)) != EOF) {
-        
-        /* Stop reading if we encounter a space */
-        if(isspace(c)) {
-            /* But we keep reading if we don't get any token yet */
-            if(ti == 0) continue;
-            break;
-        }
-
-        /* Save the current character C to token TOKEN */
-        if(isalnum(c) && (ti < maxtoken-1)) {
-            token[ti] = tolower(c);
-        }
-
-        /* Increase the index of token */
-        ti++;
-    }
-    
-    /* Terminate the current token */
-    if(ti > 0 && ti < maxtoken-1) {
-        token[ti] = '\0';
-    }
-
-    return ti;
-}
 
 /****************************
  * Dictionary
