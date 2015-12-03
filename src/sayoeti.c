@@ -15,9 +15,6 @@
  * limitations under the License.
  */
 
-/* TODO(pyk): copy all char* that passed as argument of function to 
- * new memory to prevent us freeing memory from the outside function */
-
 #include <stdio.h>
 #include <argp.h>
 #include <stdlib.h>
