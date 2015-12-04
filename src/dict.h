@@ -41,6 +41,11 @@ struct dict_item {
 
     /* The height property for AVL tree */
     int height;
+
+    /* Number of documents that contain this item;
+     * This is for computing IDF */
+    int ndocs;
+
     struct dict_item *left, *right;
 };
 

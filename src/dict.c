@@ -46,6 +46,7 @@ struct dict_item *dict_item_new(char *term)
     item->index = 0;
     item->term = t;
     item->is_inserted = FALSE;
+    item->ndocs = 0;
     item->height = 1;
     item->left = NULL;
     item->right = NULL;
@@ -234,7 +235,7 @@ struct dict_item *dict_item_search(struct dict_item *root, char *token)
 void dict_item_print(struct dict_item *root)
 {
     if(root->left) dict_item_print(root->left);
-    printf("%li:%s\n", root->index, root->term);
+    printf("%li:%d:%s\n", root->index, root->ndocs, root->term);
     if(root->right) dict_item_print(root->right);
 }
 

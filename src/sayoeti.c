@@ -135,6 +135,10 @@ int main(int argc, char** argv) {
         printf("\n");
     }
 
+    /* Compute global IDF for each term in index vocabulary */
+    corpus_index_idf(index->ndocs, cdocs, index->root);
+    dict_printout(index);
+    
     /* Create a SVM parameter */
     struct svm_parameter param;
     param.svm_type = ONE_CLASS;

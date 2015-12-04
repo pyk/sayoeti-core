@@ -48,6 +48,7 @@ struct corpus_doc_item *corpus_doc_item_new(long index, char *term)
     /* Copy TERM to T */
     strcpy(t, term);
 
+    /* Set initials value */
     cdoci->index = index;
     cdoci->term = t;
     cdoci->frequency = 1;
@@ -199,6 +200,20 @@ void corpus_doc_item_print(struct corpus_doc_item *root)
     if(root->left) corpus_doc_item_print(root->left);
     printf("%li:%d:%s ", root->index, root->frequency, root->term);
     if(root->right) corpus_doc_item_print(root->right);
+}
+
+/* corpus_doc_item_exists: check wether the INDEX of term is exists or not
+ * in the document root ROOT. It returns positive integer is the INDEX is 
+ * found, otherwise 0 will returned */
+int corpus_doc_item_exists(struct corpus_doc_item *root, long index)
+{
+    /* ITEM not exists in ROOT */
+    if(root == NULL) return 0;
+    if(index == root->index) return 1;
+    if(index < root->index) return corpus_doc_item_exists(root->left, index);
+    if(index > root->index) return corpus_doc_item_exists(root->right, index);
+
+    return 0;
 }
 
 /* corpus_doc_new: initialize new corpus document */
@@ -439,4 +454,24 @@ struct dict *corpus_index(char *dirpath, struct dict *exc)
     }
 
     return corpus;
+}
+
+/* compute_index_idf: iterate over all items in index vocabulary INDEX; 
+ * then perform check for each document in CDOCS; if the ROOT index 
+ * is exists then increase the ROOT ndocs; */
+void corpus_index_idf(int ndocs, struct corpus_doc **cdocs, struct dict_item *root)
+{
+    if(root == NULL) return;
+    if(root->left) corpus_index_idf(ndocs, cdocs, root->left);
+    
+    int cdi;
+    for(cdi = 0; cdi < ndocs; cdi++) {
+        /* check if the root->index is exists in document cdoc */
+        int exists = corpus_doc_item_exists(cdocs[cdi]->root, root->index);
+        if(exists) {
+            root->ndocs += 1;
+        }
+    }
+
+    if(root->right) corpus_index_idf(ndocs, cdocs, root->right);
 }

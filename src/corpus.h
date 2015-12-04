@@ -68,10 +68,12 @@ struct corpus_doc_item *corpus_doc_item_rotate_right(struct corpus_doc_item *ite
 struct corpus_doc_item *corpus_doc_item_rotate_left(struct corpus_doc_item *item);
 struct corpus_doc_item *corpus_doc_item_insert(struct corpus_doc_item *root, struct corpus_doc_item *item);
 void corpus_doc_item_print(struct corpus_doc_item *root);
+int corpus_doc_item_exists(struct corpus_doc_item *root, long index);
 
 struct corpus_doc *corpus_doc_new(char *path);
-struct corpus_doc *corpus_doc_create(char *path, FILE *fp, struct dict *corpus);
-struct corpus_doc **corpus_docs_init(char *dirpath, struct dict *corpus);
+struct corpus_doc *corpus_doc_create(char *path, FILE *fp, struct dict *index);
+struct corpus_doc **corpus_docs_init(char *dirpath, struct dict *index);
 struct dict *corpus_index(char *dirpath, struct dict *exc);
+void corpus_index_idf(int ndocs, struct corpus_doc **cdocs, struct dict_item *root);
 
 #endif
