@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -O3
-DEPS = src/utils.h src/dict.h src/stopwords.h src/corpus.h
-OBJ = sayoeti.o utils.o dict.o stopwords.o corpus.o svm.o
+DEPS = src/utils.h src/dict.h src/stopwords.h src/corpus.h src/train.h
+OBJ = utils.o dict.o stopwords.o corpus.o train.o svm.o sayoeti.o
 
 all: libsvm sayoeti
 
@@ -15,4 +15,4 @@ sayoeti: $(OBJ)
 	g++ $(CFLAGS) -o $@ $^ -lm
 
 clean:
-	rm -f sayoeti.o utils.o dict.o stopwords.o corpus.o svm.o sayoeti
+	rm -f sayoeti.o utils.o dict.o stopwords.o corpus.o train.o svm.o sayoeti

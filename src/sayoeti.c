@@ -25,6 +25,7 @@
 #include "dict.h"
 #include "stopwords.h"
 #include "corpus.h"
+#include "train.h"
 
 #include "../deps/libsvm/svm.h"
 
@@ -111,7 +112,7 @@ int main(int argc, char** argv) {
                 opts.stopwords_file, strerror(errno));
             exit(EXIT_FAILURE);
         }
-        dict_printout(stopw_dict);
+        // dict_printout(stopw_dict);
         printf("sayoeti: stop words dictionary from %s is created.\n", opts.stopwords_file);
     }
 
@@ -124,7 +125,7 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
     printf("sayoeti: Index vocabulary from corpus %s created.\n", opts.corpus_dir);
-    dict_printout(index);
+    // dict_printout(index);
 
     /* Create sparse representation of corpus documents */
     struct corpus_doc **cdocs = corpus_docs_init(opts.corpus_dir, index);
@@ -136,8 +137,9 @@ int main(int argc, char** argv) {
     }
 
     /* Compute global IDF for each term in index vocabulary */
+    printf("sayoeti: compute global IDF for each term in index vocabulary\n");
     corpus_index_idf(index->ndocs, cdocs, index->root);
-    dict_printout(index);
+    // dict_printout(index);
     
     /* Create a SVM parameter */
     struct svm_parameter param;
@@ -158,10 +160,26 @@ int main(int argc, char** argv) {
     param.weight = NULL;
 
     printf("DEBUG: param type: %d\n", param.svm_type);
+    
+    /* Create SVM problem based on CDOCS and index */
+    printf("sayoeti: create a problem\n");
+    struct svm_problem *svmp = train_problem_create(index->ndocs, cdocs, index);
+    if(svmp == NULL) {
+        fprintf(stderr, "sayoeti: Couldn't create SVM Problem: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
     /* Create the training model */
-    // struct svm_problem *svmp = train_problem_create(opts.corpus_dir, index);
+    struct svm_model *model = svm_train(svmp, &param);
+
+    int err = svm_save_model("test.model", model);
+    if(err < 0) {
+        fprintf(stderr, "sayoeti: Couldn't save the model: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
 
     printf("PORTS = %s\n", opts.port);
+    /* TODO(pyk) destroy the corpus doc */
     dict_destroy(stopw_dict);
     dict_destroy(index);
     return 0;

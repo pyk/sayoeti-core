@@ -26,9 +26,9 @@
 #include <dirent.h>
 #include <errno.h>
 
+#include "dict.h"
 #include "corpus.h"
 #include "utils.h"
-#include "dict.h"
 
 /* corpus_doc_item_new: initializes new corpus document item */
 struct corpus_doc_item *corpus_doc_item_new(long index, char *term)

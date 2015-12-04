@@ -211,20 +211,20 @@ int dict_item_exists(struct dict_item *root, struct dict_item *item)
 
 /* dict_item_search: recursively search the token TOKEN in root dictionary 
  * ROOT. It returns NULL if the token is not exists in dictionary */
-struct dict_item *dict_item_search(struct dict_item *root, char *token)
+struct dict_item *dict_item_search(struct dict_item *root, char *term)
 {
-    /* We can't find the token in the root dictionary ROOT */
+    /* We can't find the term in the root dictionary ROOT */
     if(root == NULL) {
         return NULL;
     }
 
     /* We compare each word in lexicographical order. left leaf start from 'a' */
-    if(strcmp(root->term, token) == 0) {
+    if(strcmp(root->term, term) == 0) {
         return root;
-    } else if(strcmp(root->term, token) > 0) {
-        return dict_item_search(root->left, token);
-    } else if(strcmp(root->term, token) < 0) {
-        return dict_item_search(root->right, token);
+    } else if(strcmp(root->term, term) > 0) {
+        return dict_item_search(root->left, term);
+    } else if(strcmp(root->term, term) < 0) {
+        return dict_item_search(root->right, term);
     }
 
     return NULL;

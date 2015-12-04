@@ -23,7 +23,6 @@
 
 #ifndef CORPUS_H
 #define CORPUS_H
-#include "dict.h"
  
 /* corpus_doc_item: represents unique token in the document */
 struct corpus_doc_item {
@@ -57,7 +56,6 @@ struct corpus_doc {
      * index in index vocabulary */
     struct corpus_doc_item *root;
 };
-
 
 /* Prototypes */
 struct corpus_doc_item *corpus_doc_item_new(long index, char *term);

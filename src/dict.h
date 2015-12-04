@@ -77,7 +77,7 @@ struct dict_item *dict_item_rotate_right(struct dict_item *item);
 struct dict_item *dict_item_rotate_left(struct dict_item *item);
 struct dict_item *dict_item_insert(struct dict_item *root, struct dict_item *item);
 int dict_item_exists(struct dict_item *root, struct dict_item *item);
-struct dict_item *dict_item_search(struct dict_item *root, char *token);
+struct dict_item *dict_item_search(struct dict_item *root, char *term);
 void dict_item_print(struct dict_item *root);
 
 struct dict *dict_new(char *source);
