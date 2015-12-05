@@ -12,7 +12,7 @@ libsvm: deps/libsvm/svm.h deps/libsvm/svm.cpp
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 sayoeti: $(OBJ)
-	g++ $(CFLAGS) -o $@ $^ -lm
+	g++ $(CFLAGS) -o $@ $^ -lm -lmill
 
 clean:
 	rm -f sayoeti.o utils.o dict.o stopwords.o corpus.o train.o svm.o sayoeti
