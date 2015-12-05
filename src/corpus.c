@@ -54,6 +54,8 @@ struct corpus_doc_item *corpus_doc_item_new(long index, char *term)
     cdoci->frequency = 1;
     cdoci->is_inserted = FALSE;
     cdoci->height = 1;
+    cdoci->left = NULL;
+    cdoci->right = NULL;
 
     return cdoci;
 }
