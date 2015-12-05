@@ -22,7 +22,11 @@
 
 /* Prototypes */
 struct svm_problem *train_problem_create(int ndocs, struct corpus_doc **cdocs, struct dict *index);
-void train_node_create(int *svmni, int ndocs, struct corpus_doc *cdoc,
-    struct corpus_doc_item *root, struct dict *index, struct svm_node *svmns);
+void train_node_create(int *svmni, 
+                       int ndocs, 
+                       struct corpus_doc *cdoc,
+                       struct corpus_doc_item *root, 
+                       struct dict *index, 
+                       struct svm_node *svmns);
 
 #endif
