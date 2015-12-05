@@ -153,9 +153,9 @@ struct corpus_doc_item *corpus_doc_item_insert(struct corpus_doc_item *root, str
     if(item->index == root->index) {
         /* increase the frequency of the root */
         root->frequency += 1;
-    } else if(item->index < root->index) {
+    }else if(item->index < root->index) {
         root->left = corpus_doc_item_insert(root->left, item);
-    } else if(item->index > root->index) {
+    }else if(item->index > root->index) {
         root->right = corpus_doc_item_insert(root->right, item);
     }
 
@@ -199,6 +199,7 @@ struct corpus_doc_item *corpus_doc_item_insert(struct corpus_doc_item *root, str
  * document */
 void corpus_doc_item_print(struct corpus_doc_item *root)
 {
+    if(root == NULL) return;
     if(root->left) corpus_doc_item_print(root->left);
     printf("%li:%d:%s ", root->index, root->frequency, root->term);
     if(root->right) corpus_doc_item_print(root->right);
@@ -243,9 +244,9 @@ struct corpus_doc *corpus_doc_new(char *path)
     return cdoc;
 }
 
-/* corpus_doc_create: create document vector representation using TF(term 
- * frequency). */
-struct corpus_doc *corpus_doc_create(char *path, FILE *fp, struct dict *corpus)
+/* corpus_doc_createf: create document vector representation using TF(term 
+ * frequency) from file FP. */
+struct corpus_doc *corpus_doc_createf(char *path, FILE *fp, struct dict *corpus)
 {
     /* Create corpus doc */
     struct corpus_doc *cdoc = corpus_doc_new(path);
@@ -286,6 +287,55 @@ struct corpus_doc *corpus_doc_create(char *path, FILE *fp, struct dict *corpus)
         }
 
         /* if item is not inserted; it's mean that there are exists item with 
+         * the same index as this. just increment the previous item frequency 
+         * and remove this item */
+        if(!cdoci->is_inserted) {
+            corpus_doc_item_destroy(cdoci);
+        }
+    }           
+
+    /* Return populated document */
+    return cdoc;
+}
+
+
+/* corpus_doc_createb: create document vector representation using TF(term 
+ * frequency) from buffer BUF. */
+struct corpus_doc *corpus_doc_createb(int lenbuf, char *buf, struct dict *index)
+{
+    /* Create corpus doc */
+    struct corpus_doc *cdoc = corpus_doc_new("buffer");
+    if(cdoc == NULL) {
+        return NULL;
+    }
+
+    /* Read every token in the file FP and populate the doc items */
+    char token[MAX_TOKEN_CHAR];
+    int indexbuf = 0;
+    while((indexbuf = util_tokenb(token, MAX_TOKEN_CHAR, indexbuf, buf)) < (lenbuf-1)) {
+        /* Search the TOKEN in CORPUS dictionary, if the DITEM is NULL then
+         * continue to the next token */
+        struct dict_item *ditem = dict_item_search(index->root, token);
+        if(ditem == NULL) {
+            continue;
+        }
+
+        /* Create new document item */
+        struct corpus_doc_item *cdoci = corpus_doc_item_new(ditem->index, ditem->term);
+        if(cdoci == NULL) {
+            /* We can't skip this, because the doc item is so important. 
+             * so let's tell the caller */
+            return NULL;
+        }
+
+        /* Insert document item to the root document */
+        cdoc->root = corpus_doc_item_insert(cdoc->root, cdoci);
+        /* If item is inserted to root, then increase the number of document */
+        if(cdoci->is_inserted) {
+            cdoc->nitems += 1;
+        }
+
+        /* Ff item is not inserted; it's mean that there are exists item with 
          * the same index as this. just increment the previous item frequency 
          * and remove this item */
         if(!cdoci->is_inserted) {
@@ -355,7 +405,7 @@ struct corpus_doc **corpus_docs_init(char *dirpath, struct dict *corpus)
         }
 
         /* Creates corpus_doc representation for each document */
-        struct corpus_doc *cdoc = corpus_doc_create(path_to_file, fp, corpus);
+        struct corpus_doc *cdoc = corpus_doc_createf(path_to_file, fp, corpus);
         if(cdoc == NULL) {
             return NULL;
         }

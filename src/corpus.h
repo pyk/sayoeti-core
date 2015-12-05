@@ -69,7 +69,8 @@ void corpus_doc_item_print(struct corpus_doc_item *root);
 int corpus_doc_item_exists(struct corpus_doc_item *root, long index);
 
 struct corpus_doc *corpus_doc_new(char *path);
-struct corpus_doc *corpus_doc_create(char *path, FILE *fp, struct dict *index);
+struct corpus_doc *corpus_doc_createf(char *path, FILE *fp, struct dict *index);
+struct corpus_doc *corpus_doc_createb(int lenbuf, char *buf, struct dict *index);
 struct corpus_doc **corpus_docs_init(char *dirpath, struct dict *index);
 struct dict *corpus_index(char *dirpath, struct dict *exc);
 void corpus_index_idf(int ndocs, struct corpus_doc **cdocs, struct dict_item *root);
