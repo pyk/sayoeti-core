@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <libmill.h>
 
 #include "utils.h"
 #include "dict.h"
@@ -41,7 +42,7 @@ const char *short_desc = "Sayoeti -- An AI that can understand which document is
 const struct argp_option available_options[] = {
     {"corpus", 'c', "DIR", 0, "Path to corpus directory (required)" },
     {"stopwords", 's', "FILE", 0, "File containing new line separated stop words (optional)" },
-    {"listen", 'l', "PORT", 0, "Port to listen too (optional)" },
+    {"listen", 'l', "PORT", 0, "Port to listen too (default: 9090)" },
     { 0 } // entry for termination
 };
 
@@ -129,12 +130,6 @@ int main(int argc, char** argv) {
 
     /* Create sparse representation of corpus documents */
     struct corpus_doc **cdocs = corpus_docs_init(opts.corpus_dir, index);
-    int cdi = 0;
-    for(cdi = 0; cdi < index->ndocs; cdi++) {
-        printf("sayoeti: corpus document %d; %li words %s\n", cdi+1, cdocs[cdi]->nitems, cdocs[cdi]->path);
-        corpus_doc_item_print(cdocs[cdi]->root);
-        printf("\n");
-    }
 
     /* Compute global IDF for each term in index vocabulary */
     printf("sayoeti: compute global IDF for each term in index vocabulary\n");
@@ -146,9 +141,9 @@ int main(int argc, char** argv) {
     param.svm_type = ONE_CLASS;
     param.kernel_type = RBF;
     param.degree = 3;
-    param.gamma = 0;
+    param.gamma = (double)1/index->nitems;
     param.coef0 = 0;
-    param.nu = 0.5;
+    param.nu = 0.387;
     param.cache_size = 100;
     param.C = 1;
     param.eps = 1e-3;
@@ -159,8 +154,6 @@ int main(int argc, char** argv) {
     param.weight_label = NULL;
     param.weight = NULL;
 
-    printf("DEBUG: param type: %d\n", param.svm_type);
-    
     /* Create SVM problem based on CDOCS and index */
     printf("sayoeti: create a problem\n");
     struct svm_problem *svmp = train_problem_create(index->ndocs, cdocs, index);
@@ -169,16 +162,107 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    /* Create the training model */
-    struct svm_model *model = svm_train(svmp, &param);
-
-    int err = svm_save_model("test.model", model);
-    if(err < 0) {
-        fprintf(stderr, "sayoeti: Couldn't save the model: %s\n", strerror(errno));
+    /* TODO(pyk): cleanup compiler warning for this function */
+    /* Check the parameter */
+    const char *errmsg = svm_check_parameter(svmp, &param);
+    if(errmsg) {
+        fprintf(stderr, "sayoeti: Parameter are not feasible: %s\n", errmsg);
         exit(EXIT_FAILURE);
     }
 
-    printf("PORTS = %s\n", opts.port);
+    /* Create the training model */
+    struct svm_model *model = svm_train(svmp, &param);
+
+    /* listening to port */
+    int port = 9090;
+    if(opts.port != NULL) port = atoi(opts.port);
+    
+    /* Set the address to bind to */
+    ipaddr addr = iplocal("127.0.0.1", port, IPADDR_IPV4);
+    
+    /* Start listening for TCP connection */
+    tcpsock listener = tcplisten(addr, 10);
+    if(listener == NULL) {
+        perror("sayoeti: couldn't listeing to socket");
+        exit(EXIT_FAILURE);
+    }
+    printf("sayoeti: listening on port :%d\n", port);
+
+    /* List of error message */
+    char *greet = "202 OK sayoeti ready\r";
+    char *bufferr = "500 BAD bad buffer; terminating connection.\r";
+    char *cdocerr = "500 BAD cannot create corpus document; terminating connection.\r";
+    char *svmnerr = "500 BAD cannot create svm node; terminating connection.\r";
+    
+    /* Forever listening */
+    while(1) {
+        tcpsock conn = tcpaccept(listener, -1);
+        printf("sayoeti: new connection arrived\n");
+        
+        /* Send greetings */
+        tcpsend(conn, greet, strlen(greet), -1);
+        tcpflush(conn, -1);
+
+        /* Get the input by client */
+        char inbuf[5000];
+        size_t leninbuf = tcprecvuntil(conn, inbuf, sizeof(inbuf), "\r", 1, -1);
+
+        /* Make sure that input buffer terminated by \r */
+        if(inbuf[leninbuf-1] != '\r') {
+            /* Send errors & close the connection */
+            tcpsend(conn, bufferr, strlen(bufferr), -1);
+            tcpflush(conn, -1);
+            tcpclose(conn);
+        }
+
+        /* Create new corpus document from buffer */
+        struct corpus_doc *cdoc = corpus_doc_createb(leninbuf, inbuf, index);
+        if(cdoc == NULL) {
+            /* Send errors & close the connection */
+            tcpsend(conn, cdocerr, strlen(cdocerr), -1);
+            tcpflush(conn, -1);
+            tcpclose(conn);
+        }
+
+        /* create new SVM node */
+        /* Allocate memory for the svm_node array */
+        struct svm_node *svmns = (struct svm_node *)malloc((cdoc->nitems+1) * sizeof(struct svm_node));
+        if(svmns == NULL) {
+            /* Send errors & close the connection */
+            tcpsend(conn, svmnerr, strlen(svmnerr), -1);
+            tcpflush(conn, -1);
+            tcpclose(conn);
+        }
+
+        /* Create svm node for each term in document */
+        int svmni = 0; /* keep track the index of svm node */
+        train_node_create(&svmni, index->ndocs, cdoc, cdoc->root, index, svmns);
+
+        /* Terminate the SVM node */
+        struct svm_node svmn = {-1, 0};
+        svmns[svmni] = svmn;
+
+        /* Print vector representtion */
+        int svmnpi;
+        for(svmnpi = 0; svmnpi < svmni; svmnpi++) {
+            printf("%d:%f ", svmns[svmnpi].index, svmns[svmnpi].value);
+        }
+        printf("\n");
+
+        /* Predict the node */
+        double prediction = svm_predict(model, svmns);
+        char res[20];
+        sprintf(res, "RES %.0f\r", prediction);
+
+        /* Send the result */
+        tcpsend(conn, res, strlen(res), -1);
+        tcpflush(conn, -1);
+
+        /* TODO(pyk): free all allocated memory in this while loop here */
+        /* Terminate the connection */
+        tcpclose(conn);
+    }
+
     /* TODO(pyk) destroy the corpus doc */
     dict_destroy(stopw_dict);
     dict_destroy(index);
