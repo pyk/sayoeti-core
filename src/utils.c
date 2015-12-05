@@ -56,6 +56,57 @@ int util_tokenf(char token[], int maxtoken, FILE *fp)
     return ti;
 }
 
+/* util_tokenb: get each word separated by space on from the BUFFER.
+ * It's return the last accessed index buffer. Since we don't return
+ * the length of token we guarantee that the returned token is not 
+ * exceed the MAXTOKEN. We assume that the buffer is terminated by '\r'. */
+int util_tokenb(char token[], int maxtoken, int indexbuf, char *buffer)
+{
+
+    /* Keep track the index of token */
+    int ti = 0;
+
+    /* Read each char until '\r' */
+    int c;
+    while((c = buffer[indexbuf]) != '\r') {
+        /* Stop reading if we encounter a space */
+        if(isspace(c) || !isalnum(c)) {
+            /* But we keep reading if we don't get any token yet */
+            if(ti == 0) {
+                indexbuf += 1;
+                continue;
+            };
+
+            /* Ff the token is exceeded, throw the token, and get the next one */
+            if(ti > maxtoken-1) {
+                ti = 0;
+                indexbuf += 1;
+                continue;
+            }
+            break;
+        }
+
+        /* Save the current character C to token TOKEN */
+        if(isalnum(c) && (ti < maxtoken-1)) {
+            token[ti] = tolower(c);
+        }
+
+        /* Increase the index of token */
+        ti++;
+
+        /* Increase the index of buffer */
+        indexbuf += 1;
+    }
+    
+    /* Terminate the current token */
+    if(ti > 0 && ti < maxtoken-1) {
+        token[ti] = '\0';
+    }
+
+    /* Return the last index of accessed buffer */
+    return indexbuf;
+}
+
 /* util_max: return the biggest element from a and b */
 int util_max(int a, int b)
 {

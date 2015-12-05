@@ -21,6 +21,7 @@
 
 /* Prototypes */
 int util_tokenf(char token[], int maxtoken, FILE *fp);
+int util_tokenb(char token[], int maxtoken, int indexbuf, char *buffer);
 int util_max(int a, int b);
 
 #endif
