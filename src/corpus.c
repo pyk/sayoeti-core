@@ -347,9 +347,9 @@ struct corpus_doc *corpus_doc_createb(int lenbuf, char *buf, struct dict *index)
     return cdoc;
 }
 
-/* corpus_docs_init: creates representation of each document in the directory
+/* corpus_doc_sparse: creates representation of each document in the directory
  * path DIRPATH as a *corpus_doc */
-struct corpus_doc **corpus_docs_init(char *dirpath, struct dict *corpus)
+struct corpus_doc **corpus_doc_sparse(char *dirpath, struct dict *corpus)
 {
     /* Allocate the memory for the array of *CORPUS_DOC */
     struct corpus_doc **cdocs = (struct corpus_doc **)malloc(corpus->ndocs * sizeof(struct corpus_doc *));
@@ -456,17 +456,19 @@ struct dict *corpus_index(char *dirpath, struct dict *exc)
     while((ent = readdir(dir)) != NULL) {
         /* We only care if the ENT is a regular file */
         if(ent->d_type != DT_REG) {
-            /* Skip this file */
+            /* If not regular file; Skip this file */
             continue;
         }
 
-        /* Get the path to the file ENT */
+        /* Allocate memory to save the path to file */
         char *path_to_file = (char *)malloc(sizeof(char) * (strlen(dirpath) + strlen(ent->d_name) + 2));
         if(path_to_file == NULL) {
             return NULL;
         }
 
-        /* Specify relative path to the file */
+        /* Specify relative path to the file. If the dictioanry name
+         * already ended with '/' then only append the filename. Otherwise
+         * add the '/'. */
         if(dirpath[strlen(dirpath)-1] == '/') {
             sprintf(path_to_file, "%s%s", dirpath, ent->d_name);
         } else {
@@ -496,7 +498,7 @@ struct dict *corpus_index(char *dirpath, struct dict *exc)
             return NULL;
         }
 
-        /* We don't need the variable again */
+        /* Deallocate the memory for pat_to_file */
         free(path_to_file);    
     }
 

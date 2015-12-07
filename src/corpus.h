@@ -2,7 +2,7 @@
  * Collection of common function to manage the corpus of sayoeti.
  * - Create index vocabulary from corpus
  * - Create vector representation sparse vector of document using
- *   TF(term frequency) 
+ *   TF(term frequency)
  * - Compute IDF(Inverse document frequency) for each term in 
  *   Index vocabulary
  *
@@ -71,7 +71,7 @@ int corpus_doc_item_exists(struct corpus_doc_item *root, long index);
 struct corpus_doc *corpus_doc_new(char *path);
 struct corpus_doc *corpus_doc_createf(char *path, FILE *fp, struct dict *index);
 struct corpus_doc *corpus_doc_createb(int lenbuf, char *buf, struct dict *index);
-struct corpus_doc **corpus_docs_init(char *dirpath, struct dict *index);
+struct corpus_doc **corpus_doc_sparse(char *dirpath, struct dict *index);
 struct dict *corpus_index(char *dirpath, struct dict *exc);
 void corpus_index_idf(int ndocs, struct corpus_doc **cdocs, struct dict_item *root);
 
