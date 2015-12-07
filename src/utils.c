@@ -21,8 +21,8 @@
 #include "utils.h"
 
 /* util_tokenf: get each word separated by space on the file FP.
- * It returns 0 if the EOF is reached and returns more than
- * MAXTOKEN-1 if the token is exceeded MAXTOKEN-1 */
+ * It returns 0 if the EOF is reached and it's guarantee that
+ * no token with length more that MAXTOKEN are returned */
 int util_tokenf(char token[], int maxtoken, FILE *fp)
 {
     /* Keep track the token index */
@@ -36,6 +36,16 @@ int util_tokenf(char token[], int maxtoken, FILE *fp)
         if(isspace(c) || !isalnum(c)) {
             /* But we keep reading if we don't get any token yet */
             if(ti == 0) continue;
+
+            /* If the token length is exceeded, throw the token, 
+             * and get the next one */
+            if(ti > maxtoken-1) {
+                ti = 0;
+                continue;
+            }
+
+            /* If token is fine, then we stop reading.
+             * and return the token */
             break;
         }
 
@@ -77,12 +87,16 @@ int util_tokenb(char token[], int maxtoken, int indexbuf, char *buffer)
                 continue;
             };
 
-            /* Ff the token is exceeded, throw the token, and get the next one */
+            /* If the token length is exceeded, throw the token, 
+             * and get the next one */
             if(ti > maxtoken-1) {
                 ti = 0;
                 indexbuf += 1;
                 continue;
             }
+
+            /* If token is fine, then we stop reading.
+             * and return the token */
             break;
         }
 
