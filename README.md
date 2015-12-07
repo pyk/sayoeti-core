@@ -1,8 +1,12 @@
-# Sayoeti
-*Sayoeti* is an Artificial Intelligence that can understand & predict 
-specified document is about Indonesian corruption news or not. 
+# Sayoeti Core
+Sayoeti is the PR's assistant of [Komisi Pemberantasan Korupsi][KPK](KPK) that 
+powered by Artificial Intelligence. He helps KPK by watching all mass media in 
+Indonesia and provide sentiment analysis of the mass media.
 
-Basically, *Sayoeti* is created to answer the following question:
+[KPK]: http://www.kpk.go.id/splash/
+
+This is one of component that Sayoeti built on. Basically, `sayoeti-core` is 
+created to answer the following question:
 
     Human: Given a document, is this document about corruption news in Indonesia? (Yes/No)
     Sayoeti: Yes, it is.
