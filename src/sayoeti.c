@@ -39,16 +39,18 @@ const char *argp_program_bug_address = "bayualdiyansyah@gmail.com";
 const char *short_desc = "Sayoeti -- An AI that can understand which document is about Indonesian corruption news";
 
 /* Available options for the program; used by argp_parser */
-const struct argp_option available_options[] = {
+static struct argp_option available_options[] = {
     {"corpus", 'c', "DIR", 0, "Path to corpus directory (required)" },
     {"stopwords", 's', "FILE", 0, "File containing new line separated stop words (optional)" },
     {"listen", 'l', "PORT", 0, "Port to listen too (default: 9090)" },
+    {"debug", 'd', 0, 0, "Print all debug information to STDOUT" },
     { 0 } // entry for termination
 };
 
 /* options structure used as input by argp_parse; it will passed to argp
  * parser function parse_opt as state->input. */
 struct options {
+    int debug;
     char *corpus_dir;
     char *stopwords_file;
     char *port;
@@ -60,6 +62,9 @@ error_t parse_opt(int key, char *arg, struct argp_state *state)
     /* get the input */
     struct options *opts = state->input;
     switch (key) {
+    case 'd':
+        opts->debug = 1;
+        break;
     case 'c':
         opts->corpus_dir = arg;
         break;
@@ -82,6 +87,7 @@ int main(int argc, char** argv) {
 
     /* Set default value for each available option */
     struct options opts;
+    opts.debug = 0;
     opts.corpus_dir = NULL;
     opts.stopwords_file = NULL;
     opts.port = NULL;
@@ -113,6 +119,8 @@ int main(int argc, char** argv) {
                 opts.stopwords_file, strerror(errno));
             exit(EXIT_FAILURE);
         }
+
+        /* Uncoment to see the stopwords dictionary */
         // dict_printout(stopw_dict);
         printf("sayoeti: stop words dictionary from %s is created.\n", opts.stopwords_file);
     }
@@ -126,10 +134,12 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
     printf("sayoeti: Index vocabulary from corpus %s created.\n", opts.corpus_dir);
+
+    /* Uncomment this to print the index vocabulary to STDOUT */
     // dict_printout(index);
 
     /* Create sparse representation of corpus documents */
-    struct corpus_doc **cdocs = corpus_docs_init(opts.corpus_dir, index);
+    struct corpus_doc **cdocs = corpus_doc_sparse(opts.corpus_dir, index);
 
     /* Compute global IDF for each term in index vocabulary */
     printf("sayoeti: compute global IDF for each term in index vocabulary\n");
@@ -173,7 +183,7 @@ int main(int argc, char** argv) {
     /* Create the training model */
     struct svm_model *model = svm_train(svmp, &param);
 
-    /* listening to port */
+    /* Listening to port */
     int port = 9090;
     if(opts.port != NULL) port = atoi(opts.port);
     
@@ -188,17 +198,16 @@ int main(int argc, char** argv) {
     }
     printf("sayoeti: listening on port :%d\n", port);
 
-    /* List of error message */
-    char *greet = "202 OK sayoeti ready\r";
-    char *bufferr = "500 BAD bad buffer; terminating connection.\r";
-    char *cdocerr = "500 BAD cannot create corpus document; terminating connection.\r";
-    char *svmnerr = "500 BAD cannot create svm node; terminating connection.\r";
+    /* List of message; inpired by SMTP */
+    char *greet = "202 OK sayoeti ready\r\n";
+    char *bufferr = "500 BAD bad buffer; terminating connection.\r\n";
+    char *cdocerr = "500 BAD cannot create corpus document; terminating connection.\r\n";
+    char *svmnerr = "500 BAD cannot create svm node; terminating connection.\r\n";
     
     /* Forever listening */
     while(1) {
         tcpsock conn = tcpaccept(listener, -1);
-        printf("sayoeti: new connection arrived\n");
-        
+
         /* Send greetings */
         tcpsend(conn, greet, strlen(greet), -1);
         tcpflush(conn, -1);
@@ -243,11 +252,13 @@ int main(int argc, char** argv) {
         svmns[svmni] = svmn;
 
         /* Print vector representtion */
-        int svmnpi;
-        for(svmnpi = 0; svmnpi < svmni; svmnpi++) {
-            printf("%d:%f ", svmns[svmnpi].index, svmns[svmnpi].value);
+        if(opts.debug) {
+            int svmnpi;
+            for(svmnpi = 0; svmnpi < svmni; svmnpi++) {
+                printf("%d:%f ", svmns[svmnpi].index, svmns[svmnpi].value);
+            }
+            printf("\n");
         }
-        printf("\n");
 
         /* Predict the node */
         double prediction = svm_predict(model, svmns);
