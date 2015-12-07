@@ -258,7 +258,7 @@ struct dict *dict_new(char *source)
         return NULL;
     }
 
-    /* SOURCE to S */
+    /* copy SOURCE to S */
     strcpy(s, source);
 
     d->source = s;
@@ -287,9 +287,12 @@ void dict_printout(struct dict *d)
 
 /* dict_populatef: Populates dictionary D items from file FP.
  * The item is inserted if not exists in SW. If EXC is NULL then 
- * exists checking is omitted.
- * 
- * It returns populated dictionary */
+ * exists checking is omitted. It returns populated dictionary
+ *
+ * Note:
+ * Potential data races here. We incremented the dictionary->nitems
+ * here, if we access the same object on multiple threads data races
+ * can happen. */
 struct dict *dict_populatef(FILE *fp, struct dict *exc, struct dict *d)
 {
     /* Read every token in the file FP and populate the dictionary D
@@ -297,12 +300,6 @@ struct dict *dict_populatef(FILE *fp, struct dict *exc, struct dict *d)
     char token[MAX_TOKEN_CHAR];
     int lentoken;
     while((lentoken = util_tokenf(token, MAX_TOKEN_CHAR, fp)) != 0) {
-        /* The token length is exceeded, so skip the token we get the next 
-         * token instead */
-        if(lentoken >= MAX_TOKEN_CHAR-1) {
-            continue;
-        }
-
         /* Create new dictionary item with term TOKEN */
         struct dict_item *vocab = dict_item_new(token);
         if(vocab == NULL) {
@@ -316,10 +313,12 @@ struct dict *dict_populatef(FILE *fp, struct dict *exc, struct dict *d)
             exists = dict_item_exists(exc->root, vocab);
         }
 
-        /* Insert the dictionary item if not exists */
+        /* Insert the dictionary item if the word is not exists */
         if(!exists) {
             /* Insert dictionary item VOCAB to a dictionary root D */
             d->root = dict_item_insert(d->root, vocab);
+
+            /* NOTE(pyk): Potential data races */
             /* Keep track of newly inserted items */
             if(vocab->is_inserted) {
                 /* increment nitems, update vocab */
@@ -331,8 +330,7 @@ struct dict *dict_populatef(FILE *fp, struct dict *exc, struct dict *d)
         /* Remove if the item is exists in dictionary EXC */
         if(exists) {
             dict_item_destroy(vocab);
-        }
-        
+        }        
     }
 
     /* Return populated dictionary */
