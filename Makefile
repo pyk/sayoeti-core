@@ -8,6 +8,12 @@ all: libsvm sayoeti
 libsvm: deps/libsvm/svm.h deps/libsvm/svm.cpp
 	g++ -Wall -Wconversion -O3 -fPIC -c deps/libsvm/svm.cpp
 
+libmill:
+	cd ./deps/libmill-1.2/ && \
+	./configure && make && make check && \
+	sudo make install && \
+	cd -
+	
 %.o: src/%.c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
