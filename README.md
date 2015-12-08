@@ -24,7 +24,7 @@ like `dan` & `di` that have no meaning in our context. To do this, use
 
 Sayoeti only tested on `x86_64`. Compiled using `gcc`.
 
-[corpus]: https://as 
+[corpus]: https://www.dropbox.com/s/vuziwj3wcwfrter/example-corpus.tar.gz?dl=0
 [sw]: https://sites.google.com/site/kevinbouge/stopwords-lists
 
 ## Setup
